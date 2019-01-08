@@ -1,10 +1,14 @@
 #!/bin/bash
-# user must be added to libvirt group
-sudo adduser `id -un` libvirtd  # current user must be added to libvirt group
-apt-get install -y cloud-init cloud-image-utils
-wget https://cloud-images.ubuntu.com/daily/server/bionic/current/bionic-server-cloudimg-amd64.img
+# apt-get install -y cloud-init cloud-image-utils qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils
+# sudo adduser `id -un` libvirtd
+# wget https://cloud-images.ubuntu.com/daily/server/bionic/current/bionic-server-cloudimg-amd64.img
 login_user="ubuntu"
 login_pass="ubuntu"
+vm_guest_name="vtest"
+base_os_backing_img="bionic-server-cloudimg-amd64.img"
+copy_on_write_img="${vm_guest_name}.qcow2"
+cloudinit_seed_img="cloudinit-seed.img"
+
 cat > ssh-private-key <<EOF
 -----BEGIN OPENSSH PRIVATE KEY-----
 b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
@@ -15,21 +19,16 @@ qDSonB/iG/NsNrITCJVYAAAADGJ1c2tAYnVzay1wYwE=
 -----END OPENSSH PRIVATE KEY-----
 EOF
 
-vm_guest_name="vtest"
-base_os_backing_img="bionic-server-cloudimg-amd64.img"
-copy_on_write_img="test-cloudinit.qcow2"
-cloudinit_seed_img="cloudinit-seed.img"
-
 rm -f $cloudinit_seed_img || true 
 cat > user-data <<EOF
 #cloud-config
 password: $login_pass 
 chpasswd: { expire: False }
-ssh_authorized_keys: 
-  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKWUN5GBLMqPyRVTxGQ+TNTaqDSonB/iG/NsNrITCJVY busk@busk-pc
 users:
   - default
 EOF
+# ssh_authorized_keys: 
+#   - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKWUN5GBLMqPyRVTxGQ+TNTaqDSonB/iG/NsNrITCJVY busk@busk-pc
 cloud-localds $cloudinit_seed_img user-data
 
 rm -f $copy_on_write_img || true 
@@ -41,7 +40,7 @@ qemu-img create -b $base_os_backing_img -f qcow2 \
 $copy_on_write_img
 
 virt-install -n $vm_guest_name -r 1024 --vcpus=1 \
-    --disk path=$copy_on_write_img -c $cloudinit_seed_img \
+    --disk path=$copy_on_write_img,size=16 -c $cloudinit_seed_img \
     --vnc --noautoconsole --os-type linux --os-variant ubuntu18.04
 
 echo "Connect using: virsh console $vm_guest_name"
@@ -51,13 +50,3 @@ echo "ssh: ssh -i ssh-private-key $login_user@<ipaddr>"
 
 # virsh domblklist $vm_guest_name 
 # virsh change-media $vm_guest_name hda --eject --force
-
-
-
-# TRASH
-# system_info:
-#   default_user:
-#     name: xxxxx 
-
-  #  -net nic -net user,hostfwd=tcp::2222-:22 \
-  #  --network bridge=virbr0 \
