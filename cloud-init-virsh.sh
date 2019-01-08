@@ -1,6 +1,8 @@
 #!/bin/bash
-# apt-get install -y cloud-init cloud-image-utils
-# wget https://cloud-images.ubuntu.com/daily/server/bionic/current/bionic-server-cloudimg-amd64.img
+# user must be added to libvirt group
+sudo adduser `id -un` libvirtd  # current user must be added to libvirt group
+apt-get install -y cloud-init cloud-image-utils
+wget https://cloud-images.ubuntu.com/daily/server/bionic/current/bionic-server-cloudimg-amd64.img
 login_user="ubuntu"
 login_pass="ubuntu"
 cat > ssh-private-key <<EOF
